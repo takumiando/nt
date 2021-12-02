@@ -1,0 +1,58 @@
+#!/bin/sh
+
+REPO="$HOME/.nt"
+NOTE="$REPO/$(cat /etc/hostname).nt"
+GITCMD="git -C $REPO"
+
+note() {
+    DATE=$(date "+%Y/%m/%d %T")
+
+    printf "%s\n" "$*" | while read LINE; do
+        printf '%s\n' "$DATE $LINE" >> "$NOTE"
+    done
+}
+
+nsync() {
+    $GITCMD pull origin main
+    $GITCMD add $NOTE
+    $GITCMD commit -m "Update $(cat /etc/hostname)"
+    if [ $? -eq 0 ]; then
+        $GITCMD push origin main
+    fi
+}
+
+if ! type git > /dev/null 2>&1; then
+    printf "%s: git command found.\n" "${0##*/}"
+    exit 1
+fi
+
+if [ ! -d "$REPO" ]; then
+    mkdir "$REPO"
+    $GITCMD init
+    $GITCMD checkout -b main
+    while :
+    do
+        read -p "Git repository URL: " URL
+        if [ x"$URL" != "x" ]; then
+            break
+        fi
+    done
+    $GITCMD remote add origin $URL
+    $GITCMD pull origin main
+fi
+
+if [ ! -f "$NOTE" ]; then
+    touch $NOTE
+fi
+
+if [ "$1" == "-s" ]; then
+    nsync
+else
+    if [ -p /dev/stdin ]; then
+        note "$(cat -)"
+    elif [ $# -ne 0 ]; then
+        note "$@"
+    else
+        cat $REPO/*.nt | sort
+    fi
+fi
