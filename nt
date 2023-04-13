@@ -1,0 +1,85 @@
+#!/bin/sh
+
+CONF=~/.ntrc
+
+print_title () {
+    printf "\n\033[1m\033[33m%s\033[m\033[m\n\n" "$*"
+}
+
+post_note () {
+    TEXT="$*"
+    TITLE="$(date '+%Y%m%d_%H%M%S')"
+    if jq -n -r --arg text "$TEXT" "{files:{\"$TITLE\":{content:\$text}}}" \
+        | curl -sS -H "Authorization: token $USER_TOKEN" https://api.github.com/gists/"$GIST_ID" -X PATCH --data @- > /dev/null; then
+        print_title "$TITLE"
+        while read -r line
+        do
+            printf "    %s\n" "$line"
+        done << EOF
+$TEXT
+
+EOF
+    fi
+}
+
+get_note () {
+    JSON=$(curl -sS -H "Authorization: token $USER_TOKEN" https://api.github.com/gists/"$GIST_ID")
+    for TITLE in $(printf "%s\n" "$JSON" | jq -r '.files|.[]?|.filename')
+    do
+        TEXT=$(printf "%s\n" "$JSON" | jq -r ".files|.[\"$TITLE\"]|.content")
+        print_title "$TITLE"
+        while read -r line
+        do
+            printf "    %s\n" "$line"
+        done << EOF
+$TEXT
+EOF
+    done | less -R
+}
+
+delete_note () {
+    TITLE="$1"
+    jq -n -r "{files:{\"$TITLE\":{content:\"\"}}}" \
+        | curl -sS -H "Authorization: token $USER_TOKEN" https://api.github.com/gists/"$GIST_ID" -X PATCH --data @- > /dev/null
+}
+
+if [ -f "$CONF" ]; then
+    . "$CONF"
+fi
+
+if [ -z "$GIST_ID" ]; then
+    printf "GIST_ID is empty\n" 1>&2
+    exit 1
+fi
+
+if [ -z "$USER_TOKEN" ]; then
+    printf "USER_TOKEN is empty\n" 1>&2
+    exit 1
+fi
+
+if ! type jq > /dev/null 2>&1; then
+    printf "jq not found\n" 1>&2
+    exit 1
+fi
+
+if ! type curl > /dev/null 2>&1; then
+    printf "curl not found\n" 1>&2
+    exit 1
+fi
+
+if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+    TEXT="$(cat -)"
+elif [ "$1" = "-d" ] || [ "$1" = "--delete" ]; then
+    TITLE="$2"
+else
+    TEXT="$*"
+fi
+
+if [ -n "$TITLE" ]; then
+    delete_note "$TITLE"
+fi
+if [ -n "$TEXT" ]; then
+    post_note "$TEXT"
+else
+    get_note
+fi
