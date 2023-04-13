@@ -18,7 +18,7 @@ GIST_ID=YOUR_GIST_ID
 USER_TOKEN=YOUR_USER_TOKEN
 ```
 
-```install``` copies to ```/usr/bin``` by default.
+```install``` copies to ```/usr/local/bin``` by default.
 
 ```ShellSession
 $ sudo ./install
