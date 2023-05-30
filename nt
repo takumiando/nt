@@ -1,6 +1,7 @@
 #!/bin/sh
 
 CONF=~/.ntrc
+CACHE=~/.ntcache
 
 print_title () {
     printf "\n\033[1m\033[33m%s\033[m\033[m\n\n" "$*"
@@ -23,18 +24,22 @@ EOF
 }
 
 get_note () {
-    JSON=$(curl -sS -H "Authorization: token $USER_TOKEN" https://api.github.com/gists/"$GIST_ID")
-    for TITLE in $(printf "%s\n" "$JSON" | jq -r '.files|.[]?|.filename')
-    do
-        TEXT=$(printf "%s\n" "$JSON" | jq -r ".files|.[\"$TITLE\"]|.content")
-        print_title "$TITLE"
-        while read -r line
+    JSON=$(curl -sS -H "Authorization: token $USER_TOKEN" https://api.github.com/gists/"$GIST_ID" 2> /dev/null)
+    if [ -n "$JSON" ]; then
+        for TITLE in $(printf "%s\n" "$JSON" | jq -r '.files|.[]?|.filename')
         do
-            printf "    %s\n" "$line"
-        done << EOF
+            TEXT=$(printf "%s\n" "$JSON" | jq -r ".files|.[\"$TITLE\"]|.content")
+            print_title "$TITLE"
+            while read -r line
+            do
+                printf "    %s\n" "$line"
+            done << EOF
 $TEXT
 EOF
-    done | less -R
+        done | tee "$CACHE" | less -R
+    else
+        less -R "$CACHE" 2> /dev/null
+    fi
 }
 
 delete_note () {
