@@ -36,9 +36,9 @@ get_note () {
             done << EOF
 $TEXT
 EOF
-        done | tee "$CACHE" | less -R
+        done | tee "$CACHE"
     else
-        less -R "$CACHE" 2> /dev/null
+        cat "$CACHE" 2> /dev/null
     fi
 }
 
