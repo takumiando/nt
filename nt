@@ -43,9 +43,11 @@ EOF
 }
 
 delete_note () {
-    TITLE="$1"
-    jq -n -r "{files:{\"$TITLE\":{content:\"\"}}}" \
+    for TITLE in $@
+    do
+        jq -n -r "{files:{\"$TITLE\":{content:\"\"}}}" \
         | curl -sS -H "Authorization: token $USER_TOKEN" https://api.github.com/gists/"$GIST_ID" -X PATCH --data @- > /dev/null
+    done
 }
 
 if [ -f "$CONF" ]; then
@@ -72,12 +74,19 @@ if ! type curl > /dev/null 2>&1; then
     exit 1
 fi
 
-if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
-    TEXT="$(cat -)"
-elif [ "$1" = "-d" ] || [ "$1" = "--delete" ]; then
-    TITLE="$2"
+if [ "$1" = "-d" ] || [ "$1" = "--delete" ]; then
+    if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+        TITLE="$(cat -)"
+    else
+        shift
+        TITLE="$@"
+    fi
 else
-    TEXT="$*"
+    if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+        TEXT="$(cat -)"
+    else
+        TEXT="$*"
+    fi
 fi
 
 if [ -n "$TITLE" ]; then
